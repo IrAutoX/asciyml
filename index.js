@@ -1,10 +1,5 @@
 #!/usr/bin/env node
 
-/* ==========================================
-== ASCIYML Created By DeahAmir And IrAutoX ==
-== (C) FOR IRAUTOX AND DEATHAMIR 2026  ======
-============================================= */
-
 import fs from 'node:fs';
 import path from 'node:path';
 import url from 'node:url';
@@ -122,15 +117,26 @@ export function stringifyYaml(data) {
 
 export function loadConfig() {
   if (!fs.existsSync(CONFIG_FILE)) return { tasks: [] };
-  return parseYaml(fs.readFileSync(CONFIG_FILE, 'utf8'));
+  try {
+    return parseYaml(fs.readFileSync(CONFIG_FILE, 'utf8'));
+  } catch (err) {
+    console.error(`[-] Error reading config file: ${err.message}`);
+    return { tasks: [] };
+  }
 }
 
 export function saveConfig(data) {
-  fs.writeFileSync(CONFIG_FILE, stringifyYaml(data), 'utf8');
+  try {
+    fs.writeFileSync(CONFIG_FILE, stringifyYaml(data), 'utf8');
+    console.log(`[+] Successfully wrote config to ${CONFIG_FILE}`);
+  } catch (err) {
+    console.error(`[-] Failed to write config file: ${err.message}`);
+    process.exit(1);
+  }
 }
 
 export function execPromise(command, options = {}) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     exec(command, options, (error, stdout, stderr) => {
       resolve({ error, stdout, stderr });
     });
@@ -164,8 +170,8 @@ export async function runTask(task, logStream = null) {
     }
     const { error, stdout, stderr } = await execPromise(fullCmd, { cwd, timeout: timeout > 0 ? timeout : undefined });
     if (logStream) {
-      if (stdout) logStream.write(`[${new Date().toISOString()}] [${task.name}] stdout: ${stdout}\n`);
-      if (stderr) logStream.write(`[${new Date().toISOString()}] [${task.name}] stderr: ${stderr}\n`);
+      if (stdout) logStream.write(`[+] [${new Date().toISOString()}] [${task.name}] stdout: ${stdout}\n`);
+      if (stderr) logStream.write(`[-] [${new Date().toISOString()}] [${task.name}] stderr: ${stderr}\n`);
     }
     if (!error) {
       if (stdout) process.stdout.write(stdout);
@@ -173,10 +179,10 @@ export async function runTask(task, logStream = null) {
       return true;
     }
     lastError = error;
-    if (logStream) logStream.write(`[${new Date().toISOString()}] [${task.name}] error: ${error.message}\n`);
+    if (logStream) logStream.write(`[-] [${new Date().toISOString()}] [${task.name}] error: ${error.message}\n`);
     attempt++;
   }
-  console.error(`Task "${task.name}" failed after ${maxRetries} retries: ${lastError.message}`);
+  console.error(`[-] Task "${task.name}" failed after ${maxRetries} retries: ${lastError.message}`);
   return false;
 }
 
@@ -219,11 +225,11 @@ if (isMain) {
       ]
     };
     if (fs.existsSync(CONFIG_FILE)) {
-      console.error('asciyml.yml already exists.');
+      console.error(`[-] asciyml.yml already exists at ${CONFIG_FILE}`);
       process.exit(1);
     }
     saveConfig(defaultConfig);
-    console.log('Created asciyml.yml with an example task.');
+    console.log('[+] Created asciyml.yml with an example task.');
   } else if (cmd === 'add') {
     const newTask = {};
     for (let i = 1; i < args.length; i++) {
@@ -246,13 +252,13 @@ if (isMain) {
       else if (args[i] === '--description') newTask.description = args[++i];
     }
     if (!newTask.action) {
-      console.error('Error: --action is required.');
+      console.error('[-] Error: --action is required.');
       process.exit(1);
     }
     const config = loadConfig();
     config.tasks.push(newTask);
     saveConfig(config);
-    console.log('Task added successfully.');
+    console.log('[+] Task added successfully.');
   } else if (cmd === 'remove') {
     let target = null;
     for (let i = 1; i < args.length; i++) {
@@ -262,20 +268,20 @@ if (isMain) {
     const config = loadConfig();
     const task = findTask(config, target);
     if (!task) {
-      console.error('Task not found.');
+      console.error('[-] Task not found.');
       process.exit(1);
     }
     config.tasks = config.tasks.filter(t => t !== task);
     saveConfig(config);
-    console.log('Task removed.');
+    console.log('[+] Task removed.');
   } else if (cmd === 'list') {
     const config = loadConfig();
     if (config.tasks.length === 0) {
-      console.log('No tasks defined.');
+      console.log('[-] No tasks defined.');
       process.exit(0);
     }
     config.tasks.forEach((t, idx) => {
-      console.log(`[${idx + 1}] ${t.name || 'unnamed'} (${t.enabled ? 'enabled' : 'disabled'})`);
+      console.log(`[+] [${idx + 1}] ${t.name || 'unnamed'} (${t.enabled ? 'enabled' : 'disabled'})`);
       if (t.description) console.log(`    desc: ${t.description}`);
       console.log(`    action: ${t.action}`);
       console.log(`    priority: ${t.priority}, delay: ${t.delay}ms`);
@@ -291,12 +297,12 @@ if (isMain) {
     const config = loadConfig();
     const task = findTask(config, target);
     if (!task) {
-      console.error('Task not found.');
+      console.error('[-] Task not found.');
       process.exit(1);
     }
     task.enabled = cmd === 'enable';
     saveConfig(config);
-    console.log(`Task "${task.name}" ${cmd === 'enable' ? 'enabled' : 'disabled'}.`);
+    console.log(`[+] Task "${task.name}" ${cmd === 'enable' ? 'enabled' : 'disabled'}.`);
   } else if (cmd === 'run') {
     const config = loadConfig();
     const flags = {};
@@ -316,7 +322,7 @@ if (isMain) {
     }
     tasksToRun.sort((a, b) => b.priority - a.priority);
     if (flags.dryRun) {
-      console.log('Would run the following tasks:');
+      console.log('[+] Would run the following tasks:');
       tasksToRun.forEach((t, i) => console.log(`  ${i+1}. ${t.name || 'unnamed'} -> ${t.action}`));
       process.exit(0);
     }
@@ -336,33 +342,33 @@ if (isMain) {
     const config = loadConfig();
     const watchTasks = config.tasks.filter(t => t.watch && t.enabled !== false);
     if (watchTasks.length === 0) {
-      console.log('No tasks with watch enabled.');
+      console.log('[-] No tasks with watch enabled.');
       process.exit(0);
     }
     const watchers = [];
     for (const task of watchTasks) {
       const watchPath = task.path || '.';
       if (!fs.existsSync(watchPath)) {
-        console.error(`Watch path does not exist: ${watchPath}`);
+        console.error(`[-] Watch path does not exist: ${watchPath}`);
         continue;
       }
       const watcher = fs.watch(watchPath, { recursive: true }, (eventType, filename) => {
-        console.log(`Change detected in ${watchPath} (${eventType} ${filename}), running task "${task.name}"`);
+        console.log(`[+] Change detected in ${watchPath} (${eventType} ${filename}), running task "${task.name}"`);
         runTask(task);
       });
       watchers.push(watcher);
-      console.log(`Watching: ${watchPath} for task "${task.name}"`);
+      console.log(`[+] Watching: ${watchPath} for task "${task.name}"`);
     }
     process.on('SIGINT', () => {
       watchers.forEach(w => w.close());
       process.exit(0);
     });
-    console.log('Press Ctrl+C to stop watching.');
+    console.log('[+] Press Ctrl+C to stop watching.');
   } else if (cmd === 'daemon') {
     const config = loadConfig();
     const daemonTasks = config.tasks.filter(t => t.interval > 0 && t.enabled !== false);
     if (daemonTasks.length === 0) {
-      console.log('No tasks with interval > 0.');
+      console.log('[-] No tasks with interval > 0.');
       process.exit(0);
     }
     let logStream = null;
@@ -371,7 +377,7 @@ if (isMain) {
       logStream = fs.createWriteStream(args[logIdx+1], { flags: 'a' });
     }
     const intervals = daemonTasks.map(task => {
-      console.log(`Starting daemon for "${task.name}" every ${task.interval}s`);
+      console.log(`[+] Starting daemon for "${task.name}" every ${task.interval}s`);
       return setInterval(() => {
         runTask(task, logStream);
       }, task.interval * 1000);
@@ -386,11 +392,11 @@ if (isMain) {
     let valid = true;
     config.tasks.forEach((t, i) => {
       if (!t.action) {
-        console.error(`Task ${i+1} (${t.name || 'unnamed'}): missing action`);
+        console.error(`[-] Task ${i+1} (${t.name || 'unnamed'}): missing action`);
         valid = false;
       }
     });
-    if (valid) console.log('Configuration is valid.');
+    if (valid) console.log('[+] Configuration is valid.');
   } else if (cmd === '--version' || cmd === '-v') {
     console.log('v2.0.0');
   } else {
