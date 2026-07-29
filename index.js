@@ -7,6 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import url from 'node:url';
 import { exec } from 'node:child_process';
 
 const CONFIG_FILE = path.join(process.cwd(), 'asciyml.yml');
@@ -58,7 +59,7 @@ export function parseYaml(content) {
           const valPart = st.substring(colonIdx + 1).trim();
           if (valPart === '') {
             const nestedLines = [];
-            i++; // next after key with no value, need to collect indented block
+            i++;
             if (i < lines.length) {
               const keyIndent = sl.search(/\S/);
               while (i < lines.length) {
@@ -189,8 +190,10 @@ export function findTask(config, nameOrIndex) {
   return config.tasks.find(t => t.name === nameOrIndex) || null;
 }
 
-// CLI execution only when run directly (not imported)
-if (import.meta.url === `file://${process.argv[1]}`) {
+const __filename = url.fileURLToPath(import.meta.url);
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename);
+
+if (isMain) {
   const args = process.argv.slice(2);
   const cmd = args[0];
 
