@@ -1,6 +1,6 @@
 {
   "name": "@irautox/asciyml",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Auto Starter Configed In Yaml - CLI task runner and scheduler",
   "main": "index.js",
   "type": "module",
