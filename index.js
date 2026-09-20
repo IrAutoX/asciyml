@@ -6,7 +6,34 @@ function scalar(r){r=r.trim();if(!r)return null;if(r==='true')return true;if(r==
 function splitKey(s){let q=null,e=false;for(let i=0;i<s.length;i++){const c=s[i];if(e){e=false;continue}if(c==='\\'&&q==='"'){e=true;continue}if((c==='"'||c==="'")&&(!q||q===c)){q=q?null:c;continue}if(c===':'&&!q)return[s.slice(0,i).trim(),s.slice(i+1).trim()]}return null}
 export function parseYaml(content){const lines=content.replace(/\r\n?/g,'\n').split('\n').map((raw,n)=>({n,clean:stripComment(raw),indent:(raw.match(/^\s*/)?.[0].length??0)})).filter(x=>x.clean.trim());if(!lines.length)return{};function block(pos,indent){if(pos>=lines.length||lines[pos].indent<indent)return[{},pos];const list=lines[pos].indent===indent&&lines[pos].clean.trim().startsWith('-'),out=list?[]:{};while(pos<lines.length){const line=lines[pos];if(line.indent<indent)break;if(line.indent>indent)throw Error('Invalid indentation near line '+(line.n+1));const text=line.clean.trim();if(list){if(!text.startsWith('-'))break;const rest=text.slice(1).trim();if(!rest){const r=block(pos+1,lines[pos+1]?.indent??indent+2);out.push(r[0]);pos=r[1];continue}const pair=splitKey(rest);if(!pair){out.push(scalar(rest));pos++;continue}const obj={};if(pair[1]){obj[pair[0]]=scalar(pair[1]);pos++}else{const r=block(pos+1,lines[pos+1]?.indent??indent+2);obj[pair[0]]=r[0];pos=r[1]}if(pos<lines.length&&lines[pos].indent>indent){const r=block(pos,lines[pos].indent);if(r[0]&&typeof r[0]==='object'&&!Array.isArray(r[0]))Object.assign(obj,r[0]);pos=r[1]}out.push(obj)}else{const pair=splitKey(text);if(!pair)throw Error('Invalid YAML near line '+(line.n+1));if(pair[1]){out[pair[0]]=scalar(pair[1]);pos++}else{const r=block(pos+1,lines[pos+1]?.indent??indent+2);out[pair[0]]=r[0];pos=r[1]}}}return[out,pos]}return block(0,lines[0].indent)[0]}
 function quote(v){if(v===null)return'null';if(typeof v==='boolean'||typeof v==='number')return String(v);return JSON.stringify(String(v))}
-export function stringifyYaml(v,indent=0){const pad=' '.repeat(indent);if(Array.isArray(v))return v.map(x=>{if(x&&typeof x==='object'&&!Array.isArray(x)){const es=Object.entries(x);if(!es.length)return pad+'- {}';let s=pad+'- '+es[0][0]+':';s+=es[0][1]&&typeof es[0][1]==='object'?'\\n'+stringifyYaml(es[0][1],indent+4):' '+quote(es[0][1]);for(const[k,z]of es.slice(1))s+='\\n'+' '.repeat(indent+2)+k+':'+(z&&typeof z==='object'?'\\n'+stringifyYaml(z,indent+4):' '+quote(z));return s}return pad+'- '+quote(x)}).join('\n');if(v&&typeof v==='object')return Object.entries(v).map(([k,x])=>pad+k+':'+(x&&typeof x==='object'?'\\n'+stringifyYaml(x,indent+2):' '+quote(x))).join('\n');return pad+quote(v)}
+export function stringifyYaml(v,indent=0){
+  const pad=' '.repeat(indent);
+  if(Array.isArray(v)){
+    return v.map(x=>{
+      if(x&&typeof x==='object'&&!Array.isArray(x)){
+        const es=Object.entries(x);
+        if(!es.length)return pad+'- {}';
+        let out=pad+'- '+es[0][0]+':';
+        const first=es[0][1];
+        out+=first&&typeof first==='object'?'\n'+stringifyYaml(first,indent+4):' '+quote(first);
+        for(const[k,z]of es.slice(1)){
+          out+='\n'+' '.repeat(indent+2)+k+':';
+          out+=z&&typeof z==='object'?'\n'+stringifyYaml(z,indent+4):' '+quote(z);
+        }
+        return out;
+      }
+      return pad+'- '+quote(x);
+    }).join('\n');
+  }
+  if(v&&typeof v==='object'){
+    return Object.entries(v).map(([k,x])=>{
+      let out=pad+k+':';
+      out+=x&&typeof x==='object'?'\n'+stringifyYaml(x,indent+2):' '+quote(x);
+      return out;
+    }).join('\n');
+  }
+  return pad+quote(v);
+}
 export function loadConfig(file=CONFIG_FILE){if(!fs.existsSync(file))return{tasks:[]};const p=parseYaml(fs.readFileSync(file,'utf8')),tasks=Array.isArray(p)?p:p.tasks;if(!Array.isArray(tasks))throw Error('Configuration must contain a tasks list');return{...p,tasks}}
 export function saveConfig(data,file=CONFIG_FILE){fs.writeFileSync(file,stringifyYaml(data)+'\n','utf8')}
 export function expandEnvVars(v,extra={}){return String(v??'').replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/g,(_,a,b)=>String(extra[a||b]??process.env[a||b]??''))}
