@@ -1,1 +1,40 @@
-{"name":"@irautox/asciyml","version":"3.0.0","description":"Zero-dependency YAML automation engine, task runner, watcher and scheduler for Node.js","main":"index.js","type":"module","bin":{"asciyml":"./index.js"},"scripts":{"test":"node --test","build":"node --check index.js && npm pack --dry-run"},"repository":{"type":"git","url":"git+https://github.com/IrAutoX/asciyml.git"},"keywords":["yaml","cli","automation","task-runner","scheduler","watcher","build-tool","devops","zero-dependency","irautox"],"author":"DeathAmir","license":"MIT","engines":{"node":">=18"},"files":["index.js","README.md","LICENSE"]}
+{
+  "name": "@irautox/asciyml",
+  "version": "3.0.1",
+  "description": "Zero-dependency YAML automation engine, task runner, watcher and scheduler for Node.js",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "asciyml": "./index.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "build": "node --check index.js && npm pack --dry-run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IrAutoX/asciyml.git"
+  },
+  "keywords": [
+    "yaml",
+    "cli",
+    "automation",
+    "task-runner",
+    "scheduler",
+    "watcher",
+    "build-tool",
+    "devops",
+    "zero-dependency",
+    "irautox"
+  ],
+  "author": "DeathAmir",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ]
+}
